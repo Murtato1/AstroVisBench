@@ -105,33 +105,29 @@ def do_vis_eval(all_queries):
     new_queries = []
 
     for query in tqdm(all_queries):
-
-        q_results = []
-        for trial in range(1, 4):
+        try:
+            response = query_model(
+                prompt_template,
+                query["gt_visualization"],
+                query['visualization_test']['gen_vis_list'][0],
+                query["visualization_gt_code"],
+                query["visualization_gen_code"],
+                query["visualization_query"]
+            )
+            raw_text = response.content[0].text
+            rationale, errors = safe_parse_json_from_claude(raw_text)
+        except Exception as e:
             rationale = ""
-            errors = ""
-
-            try:
-                response = query_model(prompt_template, query["gt_visualization"], query['visualization_test']['gen_vis_list'][0], query["visualization_gt_code"], query["visualization_gen_code"], query["visualization_query"])
-                raw_text = response.content[0].text
-                rationale, errors = safe_parse_json_from_claude(raw_text)
-
-            except Exception as e:
-                rationale = ""
-                errors = f"❌ Exception: {e}"
-
-            q_results.append({
-                "trial": trial,
-                "rationale": rationale,
-                "errors": errors
-            })
-
+            errors = f"❌ Exception: {e}"
+    
         copy_query = copy.deepcopy(query)
-
-        copy_query['visualization_llm_eval'] = q_results
-
+        copy_query['visualization_llm_eval'] = {
+            "rationale": rationale,
+            "errors": errors
+        }
+    
         new_queries.append(copy_query)
-
+    
     return new_queries
 
 def main():
